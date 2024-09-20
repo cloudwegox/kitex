@@ -26,8 +26,6 @@ import (
 	"sync/atomic"
 
 	"github.com/bytedance/gopkg/cloud/metainfo"
-	"github.com/cloudwego/localsession/backup"
-
 	"github.com/cloudwego/kitex/client/callopt"
 	"github.com/cloudwego/kitex/internal/client"
 	"github.com/cloudwego/kitex/pkg/acl"
@@ -53,6 +51,8 @@ import (
 	"github.com/cloudwego/kitex/pkg/utils"
 	"github.com/cloudwego/kitex/pkg/warmup"
 	"github.com/cloudwego/kitex/transport"
+	"github.com/cloudwego/localsession/backup"
+	"github.com/timandy/routine"
 )
 
 // Client is the core interface abstraction of kitex client.
@@ -325,6 +325,14 @@ func applyCallOptions(ctx context.Context, cfg rpcinfo.MutableRPCConfig, svr rem
 
 // Call implements the Client interface .
 func (kc *kClient) Call(ctx context.Context, method string, request, response interface{}) (err error) {
+	err = kc.call(ctx, method, request, response)
+	if err != nil {
+		panic(err)
+	}
+	return nil
+}
+
+func (kc *kClient) call(ctx context.Context, method string, request, response interface{}) (err error) {
 	// merge backup context if no metainfo found in ctx
 	ctx = backup.RecoverCtxOnDemands(ctx, kc.opt.CtxBackupHandler)
 
@@ -338,7 +346,11 @@ func (kc *kClient) Call(ctx context.Context, method string, request, response in
 	var recycleRI bool
 	defer func() {
 		if panicInfo := recover(); panicInfo != nil {
-			err = rpcinfo.ClientPanicToErr(ctx, panicInfo, ri, false)
+			runtimeError, ok := panicInfo.(routine.RuntimeError)
+			if !ok {
+				runtimeError = routine.NewRuntimeError(panicInfo)
+			}
+			err = rpcinfo.ClientPanicToErr(ctx, runtimeError, ri, false)
 			reportErr = err
 		}
 		kc.opt.TracerCtl.DoFinish(ctx, ri, reportErr)

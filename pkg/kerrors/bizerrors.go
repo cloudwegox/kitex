@@ -190,3 +190,5 @@ func (e *GRPCBizStatusError) GRPCStatus() *status.Status {
 func (e *GRPCBizStatusError) SetGRPCStatus(status *status.Status) {
 	e.status = status
 }
+
+var DefaultBizError = NewBizStatusError(1, "ERROR")

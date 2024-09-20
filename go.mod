@@ -20,6 +20,7 @@ require (
 	github.com/jhump/protoreflect v1.8.2
 	github.com/json-iterator/go v1.1.12
 	github.com/tidwall/gjson v1.17.3
+	github.com/timandy/routine v1.1.4
 	golang.org/x/net v0.24.0
 	golang.org/x/sync v0.8.0
 	golang.org/x/sys v0.19.0

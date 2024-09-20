@@ -18,11 +18,10 @@ package rpcinfo
 
 import (
 	"context"
-	"fmt"
-	"runtime/debug"
 
 	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/cloudwego/kitex/pkg/stats"
+	"github.com/timandy/routine"
 )
 
 // Record records the event to RPCStats.
@@ -47,12 +46,16 @@ func CalcEventCostUs(start, end Event) uint64 {
 
 // ClientPanicToErr to transform the panic info to error, and output the error if needed.
 func ClientPanicToErr(ctx context.Context, panicInfo interface{}, ri RPCInfo, logErr bool) error {
-	e := fmt.Errorf("KITEX: client panic, to_service=%s to_method=%s error=%v\nstack=%s",
-		ri.To().ServiceName(), ri.To().Method(), panicInfo, debug.Stack())
-	rpcStats := AsMutableRPCStats(ri.Stats())
-	rpcStats.SetPanicked(e)
-	if logErr {
-		klog.CtxErrorf(ctx, "%s", e.Error())
+	var err error
+	if re, ok := panicInfo.(routine.RuntimeError); ok {
+		err = re
+	} else {
+		err = routine.NewRuntimeError(panicInfo)
 	}
-	return e
+	rpcStats := AsMutableRPCStats(ri.Stats())
+	rpcStats.SetPanicked(err)
+	if logErr {
+		klog.CtxErrorf(ctx, "%s", err.Error())
+	}
+	return err
 }
