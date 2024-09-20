@@ -29,6 +29,7 @@ import (
 
 	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/cloudwego/kitex/pkg/profiler"
+	"github.com/timandy/routine"
 )
 
 // Task is the function that the worker will execute.
@@ -76,7 +77,7 @@ func (p *Pool) GoCtx(ctx context.Context, task Task) {
 
 	// create new worker
 	atomic.AddInt32(&p.size, 1)
-	go func() {
+	routine.Go(func() {
 		defer func() {
 			if r := recover(); r != nil {
 				klog.Errorf("panic in wpool: error=%v: stack=%s", r, debug.Stack())
@@ -110,5 +111,5 @@ func (p *Pool) GoCtx(ctx context.Context, task Task) {
 			}
 			idleTimer.Reset(p.maxIdleTime)
 		}
-	}()
+	})
 }
