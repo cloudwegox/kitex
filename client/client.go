@@ -274,12 +274,15 @@ func (kc *kClient) initLBCache() error {
 }
 
 func (kc *kClient) initMiddlewares(ctx context.Context) {
+	builderFilterMWs := richMWsWithBuilder(ctx, kc.opt.FilterMWBs)
 	builderMWs := richMWsWithBuilder(ctx, kc.opt.MWBs)
 	// integrate xds if enabled
 	if kc.opt.XDSEnabled && kc.opt.XDSRouterMiddleware != nil && kc.opt.Proxy == nil {
 		kc.mws = append(kc.mws, kc.opt.XDSRouterMiddleware)
 	}
-	kc.mws = append(kc.mws, kc.opt.CBSuite.ServiceCBMW(), rpcTimeoutMW(ctx), contextMW)
+	kc.mws = append(kc.mws, kc.opt.CBSuite.ServiceCBMW())
+	kc.mws = append(kc.mws, builderFilterMWs...)
+	kc.mws = append(kc.mws, rpcTimeoutMW(ctx), contextMW)
 	kc.mws = append(kc.mws, builderMWs...)
 	kc.mws = append(kc.mws, acl.NewACLMiddleware(kc.opt.ACLRules))
 	if kc.opt.Proxy == nil {

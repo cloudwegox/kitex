@@ -86,6 +86,17 @@ func WithSuite(suite Suite) Option {
 	}}
 }
 
+// WithFilterMiddleware adds middleware for client to handle request.
+func WithFilterMiddleware(mw endpoint.Middleware) Option {
+	mwb := func(ctx context.Context) endpoint.Middleware {
+		return mw
+	}
+	return Option{F: func(o *client.Options, di *utils.Slice) {
+		di.Push(fmt.Sprintf("WithFilterMiddleware(%+v)", utils.GetFuncName(mw)))
+		o.FilterMWBs = append(o.FilterMWBs, mwb)
+	}}
+}
+
 // WithMiddleware adds middleware for client to handle request.
 func WithMiddleware(mw endpoint.Middleware) Option {
 	mwb := func(ctx context.Context) endpoint.Middleware {
