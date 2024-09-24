@@ -68,6 +68,10 @@ func (p *Pool) Go(task Task) {
 
 // GoCtx creates/reuses a worker to run task.
 func (p *Pool) GoCtx(ctx context.Context, task Task) {
+	// pass the context to the sub-coroutine
+	task = routine.WrapTask(routine.Runnable(task)).Run
+
+	// return directly if enqueue successfully
 	select {
 	case p.tasks <- task:
 		// reuse exist worker
@@ -77,7 +81,7 @@ func (p *Pool) GoCtx(ctx context.Context, task Task) {
 
 	// create new worker
 	atomic.AddInt32(&p.size, 1)
-	routine.Go(func() {
+	go func() {
 		defer func() {
 			if r := recover(); r != nil {
 				klog.Errorf("panic in wpool: error=%v: stack=%s", r, debug.Stack())
@@ -111,5 +115,5 @@ func (p *Pool) GoCtx(ctx context.Context, task Task) {
 			}
 			idleTimer.Reset(p.maxIdleTime)
 		}
-	})
+	}()
 }
