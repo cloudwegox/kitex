@@ -203,28 +203,28 @@ func {{LowerFirst .Name}}Handler(ctx context.Context, handler interface{}, arg, 
 	{{if gt .ArgsLength 0}}realArg := {{else}}_ = {{end}}arg.(*{{if not .GenArgResultStruct}}{{.PkgRefName}}.{{end}}{{.ArgStructName}})
 	{{if or (not .Void) .Exceptions}}realResult := result.(*{{if not .GenArgResultStruct}}{{.PkgRefName}}.{{end}}{{.ResStructName}}){{end}}
 	{{if .Void}}err := handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}(ctx{{range .Args}}, realArg.{{.Name}}{{end}})
-	{{else}}success, err := handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}(ctx{{range .Args}}, realArg.{{.Name}}{{end}})
+	{{else}}success := handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}({{range $i, $e := .Args}}{{if ne $i 0}},{{end}} realArg.{{$e.Name}}{{end}})
 	{{end -}}
-	if err != nil {
-	{{- if $HandlerReturnKeepResp }}
-		// still keep resp when err is not nil
-		// NOTE: use "-handler-return-keep-resp" to generate this
-		{{if not .Void}}realResult.Success = {{if .IsResponseNeedRedirect}}&{{end}}success{{- end}}
-	{{- end }}
-	{{if .Exceptions -}}
-		switch v := err.(type) {
-		{{range .Exceptions -}}
-		case {{.Type}}:
-			 realResult.{{.Name}} = v
-		{{end -}}
-		default:
-			 return err
-		}
-	} else {
-	{{else -}}
-		return err
-	}
-	{{end -}}
+{{/*	if err != nil {*/}}
+{{/*	{{- if $HandlerReturnKeepResp }}*/}}
+{{/*		// still keep resp when err is not nil*/}}
+{{/*		// NOTE: use "-handler-return-keep-resp" to generate this*/}}
+{{/*		{{if not .Void}}realResult.Success = {{if .IsResponseNeedRedirect}}&{{end}}success{{- end}}*/}}
+{{/*	{{- end }}*/}}
+{{/*	{{if .Exceptions -}}*/}}
+{{/*		switch v := err.(type) {*/}}
+{{/*		{{range .Exceptions -}}*/}}
+{{/*		case {{.Type}}:*/}}
+{{/*			 realResult.{{.Name}} = v*/}}
+{{/*		{{end -}}*/}}
+{{/*		default:*/}}
+{{/*			 return err*/}}
+{{/*		}*/}}
+{{/*	} else {*/}}
+{{/*	{{else -}}*/}}
+{{/*		return err*/}}
+{{/*	}*/}}
+{{/*	{{end -}}*/}}
 	{{if not .Void}}realResult.Success = {{if .IsResponseNeedRedirect}}&{{end}}success{{end}}
 	{{- if .Exceptions}}}{{end}}
 	return nil
@@ -244,7 +244,7 @@ func {{LowerFirst .Name}}Handler(ctx context.Context, handler interface{}, arg, 
 	}
 	return handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}(req, stream)
 		{{- end}} {{/* $serverSide end*/}}
-    {{- end}} {{/* thrift end */}}
+	{{- end}} {{/* thrift end */}}
 	{{- end}} {{/* protobuf end */}}
 }
 
@@ -483,20 +483,20 @@ func (p *kClient) {{.Name}}(ctx context.Context{{if not .ClientStreaming}}{{rang
 	return stream, nil
 }
 {{- else}}
-func (p *kClient) {{.Name}}(ctx context.Context {{range .Args}}, {{.RawName}} {{.Type}}{{end}}) ({{if not .Void}}r {{.Resp.Type}}, {{end}}err error) {
+func (p *kClient) {{.Name}}(ctx context.Context {{range .Args}}, {{.RawName}} {{.Type}}{{end}}) {{if not .Void}}{{.Resp.Type}}{{end}} {
 	var _args {{if not .GenArgResultStruct}}{{.PkgRefName}}.{{end}}{{.ArgStructName}}
 	{{range .Args -}}
 	_args.{{.Name}} = {{.RawName}}
 	{{end -}}
 {{if .Void -}}
 	{{if .Oneway -}}
-	if err = p.c.Call(ctx, "{{.RawName}}", &_args, nil); err != nil {
-		return
+	if err := p.c.Call(ctx, "{{.RawName}}", &_args, nil); err != nil {
+		panic(err)
 	}
 	{{else -}}
 	var _result {{if not .GenArgResultStruct}}{{.PkgRefName}}.{{end}}{{.ResStructName}}
-	if err = p.c.Call(ctx, "{{.RawName}}", &_args, &_result); err != nil {
-		return
+	if err := p.c.Call(ctx, "{{.RawName}}", &_args, &_result); err != nil {
+		panic(err)
 	}
 	{{if .Exceptions -}}
 	switch {
@@ -510,8 +510,8 @@ func (p *kClient) {{.Name}}(ctx context.Context {{range .Args}}, {{.RawName}} {{
 	return nil
 {{else -}}
 	var _result {{if not .GenArgResultStruct}}{{.PkgRefName}}.{{end}}{{.ResStructName}}
-	if err = p.c.Call(ctx, "{{.RawName}}", &_args, &_result); err != nil {
-		return
+	if err := p.c.Call(ctx, "{{.RawName}}", &_args, &_result); err != nil {
+		panic(err)
 	}
 	{{if .Exceptions -}}
 	switch {
@@ -521,7 +521,7 @@ func (p *kClient) {{.Name}}(ctx context.Context {{range .Args}}, {{.RawName}} {{
 	{{end -}}
 	}
 	{{end -}}
-	return _result.GetSuccess(), nil
+	return _result.GetSuccess()
 {{end -}}
 }
 {{- end}}

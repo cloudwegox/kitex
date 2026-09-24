@@ -28,6 +28,10 @@ import (
 			{{- end}}
 		{{- end}}
 	{{- end}}
+	{{- if .HasStreaming}}
+	"github.com/cloudwego/kitex/client/streamclient"
+	"github.com/cloudwego/kitex/client/callopt/streamcall"
+    {{- end}}
 )
 // Client is designed to provide IDL-compatible methods with call-option parameter for kitex framework.
 type Client interface {
@@ -36,7 +40,7 @@ type Client interface {
 	{{.Name}}(ctx context.Context {{if not .ClientStreaming}}{{range .Args}}, {{.RawName}} {{.Type}}{{end}}{{end}}, callOptions ...callopt.Option ) (stream {{.ServiceName}}_{{.RawName}}Client, err error)
 {{- else}}
 	{{- if or (eq $.Codec "protobuf") (eq .StreamingMode "")}}
-	{{.Name}}(ctx context.Context {{range .Args}}, {{.RawName}} {{.Type}}{{end}}, callOptions ...callopt.Option ) ({{if not .Void}}r {{.Resp.Type}}, {{end}}err error)
+	{{.Name}}({{range $i, $e := .Args}}{{if ne $i 0}},{{end}} {{$e.RawName}} {{$e.Type}}{{end}}, callOptions ...callopt.Option ) {{if not .Void}}{{.Resp.Type}}{{end}}
 	{{- end}}
 {{- end}}
 {{- end}}
@@ -48,7 +52,7 @@ type StreamClient interface {
 {{- range .AllMethods}}
 {{- if or .ClientStreaming .ServerStreaming}}
 	{{.Name}}(ctx context.Context {{if not .ClientStreaming}}{{range .Args}}, {{.RawName}} {{.Type}}{{end}}{{end}}, callOptions ...streamcall.Option ) (stream {{.ServiceName}}_{{.RawName}}Client, err error)
-{{- else if eq .StreamingMode "unary"}}
+{{- else if and (not .ClientStreaming) (not .ServerStreaming)}}
 	{{.Name}}(ctx context.Context {{range .Args}}, {{.RawName}} {{.Type}}{{end}}, callOptions ...streamcall.Option ) ({{if not .Void}}r {{.Resp.Type}}, {{end}}err error)
 {{- end}}
 {{- end}}
@@ -83,9 +87,9 @@ func NewClient(destService string, opts ...client.Option) (Client, error) {
 	{{end}}
 	options = append(options, opts...)
 
-    kc, err := client.NewClient(
-        {{- if eq $.Codec "protobuf"}}serviceInfo(){{else}}serviceInfoForClient(){{end -}}
-        , options...)
+	kc, err := client.NewClient(
+		{{- if eq $.Codec "protobuf"}}serviceInfo(){{else}}serviceInfoForClient(){{end -}}
+		, options...)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +125,8 @@ func (p *k{{$.ServiceName}}Client) {{.Name}}(ctx context.Context {{if not .Clien
 {{- end}}
 {{- else}}
 {{- if or (eq $.Codec "protobuf") (eq .StreamingMode "")}}
-func (p *k{{$.ServiceName}}Client) {{.Name}}(ctx context.Context {{range .Args}}, {{.RawName}} {{.Type}}{{end}}, callOptions ...callopt.Option ) ({{if not .Void}}r {{.Resp.Type}}, {{end}}err error) {
+func (p *k{{$.ServiceName}}Client) {{.Name}}({{range $i, $e := .Args}}{{if ne $i 0}},{{end}} {{$e.RawName}} {{$e.Type}}{{end}}, callOptions ...callopt.Option ) {{if not .Void}}{{.Resp.Type}}{{end}} {
+	ctx := context.Background()
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
 	return p.kClient.{{.Name}}(ctx{{range .Args}}, {{.RawName}}{{end}})
 }
@@ -169,7 +174,7 @@ func (p *k{{$.ServiceName}}StreamClient) {{.Name}}(ctx context.Context {{if not 
 	ctx = client.NewCtxWithCallOptions(ctx, streamcall.GetCallOptions(callOptions))
 	return p.kClient.{{.Name}}(ctx{{if not .ClientStreaming}}{{range .Args}}, {{.RawName}}{{end}}{{end}})
 }
-{{else if eq .StreamingMode "unary"}}
+{{else if and (not .ClientStreaming) (not .ServerStreaming)}}
 func (p *k{{$.ServiceName}}StreamClient) {{.Name}}(ctx context.Context {{range .Args}}, {{.RawName}} {{.Type}}{{end}}, callOptions ...streamcall.Option ) ({{if not .Void}}r {{.Resp.Type}}, {{end}}err error) {
 	ctx = client.NewCtxWithCallOptions(ctx, streamcall.GetCallOptions(callOptions))
 	return p.kClient.{{.Name}}(ctx{{range .Args}}, {{.RawName}}{{end}})

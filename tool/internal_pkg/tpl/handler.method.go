@@ -30,16 +30,29 @@ func (s *{{$.ServiceName}}Impl) {{.Name}}({{if $.StreamX}}ctx context.Context, {
 // And the client may not perceive the loss of requests due to network packet loss.
 // If possible, do not use oneway methods.
 {{- end}}
+{{- if eq $.Codec "thrift"}}
+func (s *{{$.ServiceName}}Impl) {{.Name}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{LowerFirst $arg.Name}} {{$arg.Type}}{{end}}) {
+	// TODO: Your code here...
+}
+{{- else}}
 func (s *{{$.ServiceName}}Impl) {{.Name}}(ctx context.Context {{- range .Args}}, {{LowerFirst .Name}} {{.Type}}{{end}}) (err error) {
 	// TODO: Your code here...
 	return
 }
+{{- end}}
 {{else -}}
 // {{.Name}} implements the {{.ServiceName}}Impl interface.
+{{- if eq $.Codec "thrift"}}
+func (s *{{$.ServiceName}}Impl) {{.Name}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{LowerFirst $arg.Name}} {{$arg.Type}}{{end}}) {{.Resp.Type}} {
+	// TODO: Your code here...
+	return nil
+}
+{{- else}}
 func (s *{{$.ServiceName}}Impl) {{.Name}}(ctx context.Context {{range .Args}}, {{LowerFirst .Name}} {{.Type}}{{end}} ) (resp {{.Resp.Type}}, err error) {
 	// TODO: Your code here...
 	return
 }
+{{- end}}
 {{end}}
 {{end}}
 {{end}}
