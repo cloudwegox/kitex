@@ -23,8 +23,8 @@ import (
 	"time"
 
 	"github.com/bytedance/gopkg/util/gopool"
-
 	"github.com/cloudwego/kitex/pkg/kerrors"
+	"github.com/timandy/routine"
 )
 
 type TimeoutConfig struct {
@@ -58,7 +58,7 @@ func CallWithTimeout(timeout time.Duration, cancel context.CancelFunc, f func() 
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	finishChan := make(chan error, 1) // non-blocking channel to avoid goroutine leak
-	gopool.Go(func() {
+	gopool.Go(routine.WrapTask(func() {
 		var bizErr error
 		defer func() {
 			if r := recover(); r != nil {
@@ -71,7 +71,7 @@ func CallWithTimeout(timeout time.Duration, cancel context.CancelFunc, f func() 
 			finishChan <- bizErr
 		}()
 		bizErr = f()
-	})
+	}).Run)
 	select {
 	case <-timer.C:
 		cancel()

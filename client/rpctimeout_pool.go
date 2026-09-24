@@ -27,6 +27,7 @@ import (
 	"github.com/cloudwego/kitex/pkg/endpoint"
 	"github.com/cloudwego/kitex/pkg/profiler"
 	"github.com/cloudwego/kitex/pkg/rpcinfo"
+	"github.com/timandy/routine"
 )
 
 // timeoutPool is a worker pool for task with timeout
@@ -165,6 +166,7 @@ type timeoutTask struct {
 
 	req, resp any
 	ep        endpoint.Endpoint
+	run       func()
 
 	err atomic.Value
 }
@@ -180,6 +182,7 @@ func newTimeoutTask(ctx context.Context, timeout time.Duration,
 
 	t.req, t.resp = req, resp
 	t.ep = ep
+	t.run = routine.WrapTask(t.runCore).Run
 	t.err = atomic.Value{}
 	t.wg.Add(1) // for Wait, Wait must be called before Recycle()
 	return t
@@ -192,6 +195,7 @@ func (t *timeoutTask) recycle() {
 	t.ctx = nil
 	t.req, t.resp = nil, nil
 	t.ep = nil
+	t.run = nil
 	t.err = atomic.Value{}
 	poolTask.Put(t)
 }
@@ -200,8 +204,8 @@ func (t *timeoutTask) Cancel(err error) {
 	t.ctx.Cancel(err)
 }
 
-// Run must be called in a separated goroutine
-func (t *timeoutTask) Run() {
+// runCore must be called in a separated goroutine
+func (t *timeoutTask) runCore() {
 	defer func() {
 		if panicInfo := recover(); panicInfo != nil {
 			ri := rpcinfo.GetRPCInfo(t.ctx)
@@ -226,6 +230,10 @@ func (t *timeoutTask) Run() {
 	if err != nil { // panic if store nil
 		t.err.Store(err)
 	}
+}
+
+func (t *timeoutTask) Run() {
+	t.run()
 }
 
 // Wait waits Run finishes and returns result
