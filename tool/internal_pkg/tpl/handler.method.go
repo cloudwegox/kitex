@@ -18,10 +18,16 @@ package tpl
 var HandlerMethodsTpl string = `{{define "HandlerMethod"}}
 {{range .AllMethods}}
 {{- if or .ClientStreaming .ServerStreaming}}
-func (s *{{$.ServiceName}}Impl) {{.Name}}({{if $.StreamX}}ctx context.Context, {{end}}{{if not .ClientStreaming}}{{range .Args}}{{LowerFirst .Name}} {{.Type}}, {{end}}{{end}}stream {{.PkgRefName}}.{{.ServiceName}}_{{.RawName}}Server) (err error) {	
+{{- if eq $.Codec "thrift"}}
+func (s *{{$.ServiceName}}Impl) {{.Name}}(ctx context.Context, {{if not .ClientStreaming}}{{range .Args}}{{LowerFirst .Name}} {{.Type}}, {{end}}{{end}}stream {{.PkgRefName}}.{{.ServiceName}}_{{.RawName}}Server) {
+	println("{{.Name}} called")
+}
+{{- else}}
+func (s *{{$.ServiceName}}Impl) {{.Name}}({{if $.StreamX}}ctx context.Context, {{end}}{{if not .ClientStreaming}}{{range .Args}}{{LowerFirst .Name}} {{.Type}}, {{end}}{{end}}stream {{.PkgRefName}}.{{.ServiceName}}_{{.RawName}}Server) (err error) {
 	println("{{.Name}} called")
 	return
 }
+{{- end}}
 {{- else}}
 {{- if .Void}}
 // {{.Name}} implements the {{.ServiceName}}Impl interface.

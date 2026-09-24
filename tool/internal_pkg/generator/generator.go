@@ -573,7 +573,7 @@ func (g *generator) setImports(name string, pkg *PackageInfo) {
 		fallthrough
 	case HandlerFileName:
 		for _, m := range pkg.ServiceInfo.AllMethods() {
-			if pkg.Codec != "thrift" && !m.ServerStreaming && !m.ClientStreaming {
+			if pkg.Codec != "thrift" || m.ServerStreaming || m.ClientStreaming {
 				pkg.AddImports("context")
 			}
 			for _, a := range m.Args {
