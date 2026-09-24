@@ -69,8 +69,10 @@ type UnaryOptions struct {
 	opts *Options
 
 	// middlewares
-	UnaryMiddlewares        []endpoint.UnaryMiddleware
-	UnaryMiddlewareBuilders []endpoint.UnaryMiddlewareBuilder
+	UnaryFilterMiddlewares        []endpoint.UnaryMiddleware
+	UnaryFilterMiddlewareBuilders []endpoint.UnaryMiddlewareBuilder
+	UnaryMiddlewares              []endpoint.UnaryMiddleware
+	UnaryMiddlewareBuilders       []endpoint.UnaryMiddlewareBuilder
 
 	// retry policy
 	RetryMethodPolicies map[string]retry.Policy
@@ -79,6 +81,16 @@ type UnaryOptions struct {
 
 	// fallback policy
 	Fallback *fallback.Policy
+}
+
+func (o *UnaryOptions) InitFilterMiddlewares(ctx context.Context) {
+	if len(o.UnaryFilterMiddlewareBuilders) > 0 {
+		middlewares := make([]endpoint.UnaryMiddleware, 0, len(o.UnaryFilterMiddlewareBuilders))
+		for _, mwb := range o.UnaryFilterMiddlewareBuilders {
+			middlewares = append(middlewares, mwb(ctx))
+		}
+		o.UnaryFilterMiddlewares = append(o.UnaryFilterMiddlewares, middlewares...)
+	}
 }
 
 func (o *UnaryOptions) InitMiddlewares(ctx context.Context) {
@@ -101,15 +113,27 @@ type StreamOption struct {
 }
 
 type StreamOptions struct {
-	StreamEventHandlers          []rpcinfo.ClientStreamEventHandler
-	RecvTimeout                  time.Duration
-	RecvTimeoutConfig            streaming.TimeoutConfig
-	StreamMiddlewares            []cep.StreamMiddleware
-	StreamMiddlewareBuilders     []cep.StreamMiddlewareBuilder
-	StreamRecvMiddlewares        []cep.StreamRecvMiddleware
-	StreamRecvMiddlewareBuilders []cep.StreamRecvMiddlewareBuilder
-	StreamSendMiddlewares        []cep.StreamSendMiddleware
-	StreamSendMiddlewareBuilders []cep.StreamSendMiddlewareBuilder
+	StreamEventHandlers            []rpcinfo.ClientStreamEventHandler
+	RecvTimeout                    time.Duration
+	RecvTimeoutConfig              streaming.TimeoutConfig
+	StreamFilterMiddlewares        []cep.StreamMiddleware
+	StreamFilterMiddlewareBuilders []cep.StreamMiddlewareBuilder
+	StreamMiddlewares              []cep.StreamMiddleware
+	StreamMiddlewareBuilders       []cep.StreamMiddlewareBuilder
+	StreamRecvMiddlewares          []cep.StreamRecvMiddleware
+	StreamRecvMiddlewareBuilders   []cep.StreamRecvMiddlewareBuilder
+	StreamSendMiddlewares          []cep.StreamSendMiddleware
+	StreamSendMiddlewareBuilders   []cep.StreamSendMiddlewareBuilder
+}
+
+func (o *StreamOptions) InitFilterMiddlewares(ctx context.Context) {
+	if len(o.StreamFilterMiddlewareBuilders) > 0 {
+		middlewares := make([]cep.StreamMiddleware, 0, len(o.StreamFilterMiddlewareBuilders))
+		for _, mwb := range o.StreamFilterMiddlewareBuilders {
+			middlewares = append(middlewares, mwb(ctx))
+		}
+		o.StreamFilterMiddlewares = append(o.StreamFilterMiddlewares, middlewares...)
+	}
 }
 
 func (o *StreamOptions) InitMiddlewares(ctx context.Context) {
