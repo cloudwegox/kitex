@@ -95,10 +95,11 @@ func (c *client) Send(ctx context.Context, ri rpcinfo.RPCInfo, req remote.Messag
 
 // Recv is blocked.
 func (c *client) Recv(ctx context.Context, ri rpcinfo.RPCInfo, resp remote.Message) (err error) {
+	var msgErr error
 	// resp is nil means oneway
 	if resp != nil {
 		ctx, err = c.transHdlr.Read(ctx, c.conn, resp)
-		c.transHdlr.OnMessage(ctx, nil, resp)
+		_, msgErr = c.transHdlr.OnMessage(ctx, nil, resp)
 	} else {
 		// Wait for the request to be flushed out before closing the connection.
 		// 500us is an acceptable duration to keep a minimal loss rate at best effort.
@@ -106,5 +107,8 @@ func (c *client) Recv(ctx context.Context, ri rpcinfo.RPCInfo, resp remote.Messa
 	}
 
 	c.connManager.ReleaseConn(err, ri)
+	if msgErr != nil {
+		return msgErr
+	}
 	return err
 }
