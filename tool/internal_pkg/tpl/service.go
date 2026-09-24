@@ -202,7 +202,7 @@ func {{LowerFirst .Name}}Handler(ctx context.Context, handler interface{}, arg, 
 	{{- end}}
 	{{if gt .ArgsLength 0}}realArg := {{else}}_ = {{end}}arg.(*{{if not .GenArgResultStruct}}{{.PkgRefName}}.{{end}}{{.ArgStructName}})
 	{{if or (not .Void) .Exceptions}}realResult := result.(*{{if not .GenArgResultStruct}}{{.PkgRefName}}.{{end}}{{.ResStructName}}){{end}}
-	{{if .Void}}err := handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}(ctx{{range .Args}}, realArg.{{.Name}}{{end}})
+	{{if .Void}}handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}({{range $i, $e := .Args}}{{if ne $i 0}},{{end}} realArg.{{$e.Name}}{{end}})
 	{{else}}success := handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}({{range $i, $e := .Args}}{{if ne $i 0}},{{end}} realArg.{{$e.Name}}{{end}})
 	{{end -}}
 {{/*	if err != nil {*/}}
@@ -235,15 +235,16 @@ func {{LowerFirst .Name}}Handler(ctx context.Context, handler interface{}, arg, 
 	}
 	stream := &{{LowerFirst .ServiceName}}{{.RawName}}Server{st.Stream}
 		{{- if not $serverSide}}
-	return handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}(stream)
+	handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}(ctx, stream)
 		{{- else}} {{/* !$serverSide */}}
 		{{- $RequestType := $arg.Type}}
 	req := new({{NotPtr $RequestType}})
 	if err := st.Stream.RecvMsg(req); err != nil {
 		return err
 	}
-	return handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}(req, stream)
+	handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}(ctx, req, stream)
 		{{- end}} {{/* $serverSide end*/}}
+	return nil
 	{{- end}} {{/* thrift end */}}
 	{{- end}} {{/* protobuf end */}}
 }
@@ -499,27 +500,25 @@ func (p *kClient) {{.Name}}(ctx context.Context {{range .Args}}, {{.RawName}} {{
 		panic(err)
 	}
 	{{if .Exceptions -}}
-	switch {
 	{{range .Exceptions -}}
-	case _result.{{.Name}} != nil:
-		return _result.{{.Name}}
-	{{end -}}
+	if _result.{{.Name}} != nil {
+		panic(_result.{{.Name}})
 	}
 	{{end -}}
 	{{end -}}
-	return nil
+	{{end -}}
+	return
 {{else -}}
 	var _result {{if not .GenArgResultStruct}}{{.PkgRefName}}.{{end}}{{.ResStructName}}
 	if err := p.c.Call(ctx, "{{.RawName}}", &_args, &_result); err != nil {
 		panic(err)
 	}
 	{{if .Exceptions -}}
-	switch {
 	{{range .Exceptions -}}
-	case _result.{{.Name}} != nil:
-		return r, _result.{{.Name}}
-	{{end -}}
+	if _result.{{.Name}} != nil {
+		panic(_result.{{.Name}})
 	}
+	{{end -}}
 	{{end -}}
 	return _result.GetSuccess()
 {{end -}}

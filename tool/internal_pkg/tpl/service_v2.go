@@ -129,28 +129,8 @@ func {{LowerFirst .Name}}Handler(ctx context.Context, handler interface{}, arg, 
 	{{- else}} {{/* thrift logic */}}
 	{{if gt .ArgsLength 0}}realArg := {{else}}_ = {{end}}arg.(*{{if not .GenArgResultStruct}}{{.PkgRefName}}.{{end}}{{.ArgStructName}})
 	{{if or (not .Void) .Exceptions}}realResult := result.(*{{if not .GenArgResultStruct}}{{.PkgRefName}}.{{end}}{{.ResStructName}}){{end}}
-	{{if .Void}}err := handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}(ctx{{range .Args}}, realArg.{{.Name}}{{end}})
-	{{else}}success, err := handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}(ctx{{range .Args}}, realArg.{{.Name}}{{end}})
-	{{end -}}
-	if err != nil {
-	{{- if $HandlerReturnKeepResp }}
-		// still keep resp when err is not nil
-		// NOTE: use "-handler-return-keep-resp" to generate this
-		{{if not .Void}}realResult.Success = {{if .IsResponseNeedRedirect}}&{{end}}success{{- end}}
-	{{- end }}
-	{{if .Exceptions -}}
-		switch v := err.(type) {
-		{{range .Exceptions -}}
-		case {{.Type}}:
-			 realResult.{{.Name}} = v
-		{{end -}}
-		default:
-			 return err
-		}
-	} else {
-	{{else -}}
-		return err
-	}
+	{{if .Void}}handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}({{range $i, $e := .Args}}{{if ne $i 0}},{{end}} realArg.{{$e.Name}}{{end}})
+	{{else}}success := handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}({{range $i, $e := .Args}}{{if ne $i 0}},{{end}} realArg.{{$e.Name}}{{end}})
 	{{end -}}
 	{{if not .Void}}realResult.Success = {{if .IsResponseNeedRedirect}}&{{end}}success{{end}}
 	{{- if .Exceptions}}}{{end}}
@@ -172,7 +152,8 @@ func {{LowerFirst .Name}}Handler(ctx context.Context, handler interface{}, arg, 
 		return err
 	}
 	{{- end}}
-	return handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}(ctx, {{if $serverSide}}req, {{end}}stream)
+	handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}(ctx, {{if $serverSide}}req, {{end}}stream)
+	return nil
 	{{- end}}
 }
 

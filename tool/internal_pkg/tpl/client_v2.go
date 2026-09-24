@@ -35,7 +35,11 @@ type Client interface {
 {{- if (or .ClientStreaming .ServerStreaming)}}
 	{{.Name}}(ctx context.Context {{if not .ClientStreaming}}{{range .Args}}, {{.RawName}} {{.Type}}{{end}}{{end}}, callOptions ...streamcall.Option ) (stream {{.ServiceName}}_{{.RawName}}Client, err error)
 {{- else}}
+{{- if eq $.Codec "thrift"}}
+	{{.Name}}({{range $i, $e := .Args}}{{if ne $i 0}},{{end}} {{$e.RawName}} {{$e.Type}}{{end}}, callOptions ...callopt.Option ) {{if not .Void}}{{.Resp.Type}}{{end}}
+{{- else}}
 	{{.Name}}(ctx context.Context {{range .Args}}, {{.RawName}} {{.Type}}{{end}}, callOptions ...callopt.Option ) ({{if not .Void}}r {{.Resp.Type}}, {{end}}err error)
+{{- end}}
 {{- end}}
 {{- end}}
 }
@@ -100,10 +104,29 @@ func (p *k{{$.ServiceName}}Client) {{.Name}}(ctx context.Context {{if not .Clien
 	return p.kClient.{{.Name}}(ctx{{if not .ClientStreaming}}{{range .Args}}, {{.RawName}}{{end}}{{end}})
 }
 {{- else}}
+{{- if eq $.Codec "thrift"}}
+func (p *k{{$.ServiceName}}Client) {{.Name}}({{range $i, $e := .Args}}{{if ne $i 0}},{{end}} {{$e.RawName}} {{$e.Type}}{{end}}, callOptions ...callopt.Option ) {{if not .Void}}{{.Resp.Type}}{{end}} {
+	ctx := context.Background()
+	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
+	{{- if .Void}}
+	if err := p.kClient.{{.Name}}(ctx{{range .Args}}, {{.RawName}}{{end}}); err != nil {
+		panic(err)
+	}
+	return
+	{{- else}}
+	result, err := p.kClient.{{.Name}}(ctx{{range .Args}}, {{.RawName}}{{end}})
+	if err != nil {
+		panic(err)
+	}
+	return result
+	{{- end}}
+}
+{{- else}}
 func (p *k{{$.ServiceName}}Client) {{.Name}}(ctx context.Context {{range .Args}}, {{.RawName}} {{.Type}}{{end}}, callOptions ...callopt.Option ) ({{if not .Void}}r {{.Resp.Type}}, {{end}}err error) {
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
 	return p.kClient.{{.Name}}(ctx{{range .Args}}, {{.RawName}}{{end}})
 }
+{{- end}}
 {{- end}}
 {{end}}
 
