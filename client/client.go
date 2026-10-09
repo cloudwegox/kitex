@@ -287,10 +287,10 @@ type middleware struct {
 }
 
 // For unary:
-// service cb mw -> xds router -> rpctimeout mw -> customized unary mws -> context mw -> customized mws -> other mws
+// service cb mw -> xds router -> unary filter mws -> rpctimeout mw -> customized unary mws -> context mw -> customized mws -> other mws
 
 // For streaming:
-// service cb mw -> customized stream mws -> xds router -> context mw -> customized mws -> other mws
+// service cb mw -> stream filter mws -> customized stream mws -> xds router -> context mw -> customized mws -> other mws
 
 // The reason why the xds router must be placed before the timeout middleware is that the timeout configuration is
 // obtained from the rds config, and the timeout middleware only takes effect in the unary scenario.
@@ -319,6 +319,8 @@ func (kc *kClient) initMiddlewares(ctx context.Context) (mw middleware) {
 		// integrate xds if enabled
 		mw.uMws = append(mw.uMws, kc.opt.XDSRouterMiddleware.ToUnaryMiddleware())
 	}
+	kc.opt.UnaryOptions.InitFilterMiddlewares(ctx)
+	mw.uMws = append(mw.uMws, kc.opt.UnaryOptions.UnaryFilterMiddlewares...)
 	mw.uMws = append(mw.uMws, rpcTimeoutMW(ctx))
 	kc.opt.UnaryOptions.InitMiddlewares(ctx)
 	mw.uMws = append(mw.uMws, kc.opt.UnaryOptions.UnaryMiddlewares...)
@@ -330,8 +332,11 @@ func (kc *kClient) initMiddlewares(ctx context.Context) (mw middleware) {
 		// integrate xds if enabled
 		mw.smws = append([]endpoint.Middleware{kc.opt.XDSRouterMiddleware}, mw.smws...)
 	}
+	mw.sMws = []cep.StreamMiddleware{kc.opt.CBSuite.StreamingServiceCBMW()}
+	kc.opt.StreamOptions.InitFilterMiddlewares(ctx)
+	mw.sMws = append(mw.sMws, kc.opt.StreamOptions.StreamFilterMiddlewares...)
 	kc.opt.StreamOptions.InitMiddlewares(ctx)
-	mw.sMws = append([]cep.StreamMiddleware{kc.opt.CBSuite.StreamingServiceCBMW()}, kc.opt.StreamOptions.StreamMiddlewares...)
+	mw.sMws = append(mw.sMws, kc.opt.StreamOptions.StreamMiddlewares...)
 	return
 }
 

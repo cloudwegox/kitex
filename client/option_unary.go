@@ -65,3 +65,19 @@ func WithUnaryMiddlewareBuilder(mwb endpoint.UnaryMiddlewareBuilder) UnaryOption
 		o.UnaryMiddlewareBuilders = append(o.UnaryMiddlewareBuilders, mwb)
 	}}
 }
+
+// WithUnaryFilterMiddleware adds a unary middleware before RPC timeout.
+func WithUnaryFilterMiddleware(mw endpoint.UnaryMiddleware) UnaryOption {
+	return UnaryOption{F: func(o *UnaryOptions, di *utils.Slice) {
+		di.Push(fmt.Sprintf("WithUnaryFilterMiddleware(%+v)", utils.GetFuncName(mw)))
+		o.UnaryFilterMiddlewares = append(o.UnaryFilterMiddlewares, mw)
+	}}
+}
+
+// WithUnaryFilterMiddlewareBuilder adds a unary middleware builder before RPC timeout.
+func WithUnaryFilterMiddlewareBuilder(mwb endpoint.UnaryMiddlewareBuilder) UnaryOption {
+	return UnaryOption{F: func(o *UnaryOptions, di *utils.Slice) {
+		di.Push(fmt.Sprintf("WithUnaryFilterMiddlewareBuilder(%+v)", utils.GetFuncName(mwb)))
+		o.UnaryFilterMiddlewareBuilders = append(o.UnaryFilterMiddlewareBuilders, mwb)
+	}}
+}

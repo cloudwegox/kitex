@@ -95,6 +95,22 @@ func WithStreamMiddlewareBuilder(mwb cep.StreamMiddlewareBuilder) StreamOption {
 	}}
 }
 
+// WithStreamFilterMiddleware adds a stream middleware before other stream middlewares.
+func WithStreamFilterMiddleware(mw cep.StreamMiddleware) StreamOption {
+	return StreamOption{F: func(o *StreamOptions, di *utils.Slice) {
+		di.Push(fmt.Sprintf("WithStreamFilterMiddleware(%+v)", utils.GetFuncName(mw)))
+		o.StreamFilterMiddlewares = append(o.StreamFilterMiddlewares, mw)
+	}}
+}
+
+// WithStreamFilterMiddlewareBuilder adds a stream filter middleware builder.
+func WithStreamFilterMiddlewareBuilder(mwb cep.StreamMiddlewareBuilder) StreamOption {
+	return StreamOption{F: func(o *StreamOptions, di *utils.Slice) {
+		di.Push(fmt.Sprintf("WithStreamFilterMiddlewareBuilder(%+v)", utils.GetFuncName(mwb)))
+		o.StreamFilterMiddlewareBuilders = append(o.StreamFilterMiddlewareBuilders, mwb)
+	}}
+}
+
 // WithStreamRecvMiddleware add recv middleware for stream.
 func WithStreamRecvMiddleware(mw cep.StreamRecvMiddleware) StreamOption {
 	return StreamOption{F: func(o *client.StreamOptions, di *utils.Slice) {
