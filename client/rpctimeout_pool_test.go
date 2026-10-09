@@ -26,6 +26,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/timandy/routine"
+
 	"github.com/cloudwego/kitex/internal/test"
 )
 
@@ -73,6 +75,46 @@ func BenchmarkTimeoutPool(b *testing.B) {
 			}
 		}
 	})
+}
+
+func TestTimeoutPoolPreservesRoutineContextForReusedWorker(t *testing.T) {
+	tls := routine.NewInheritableThreadLocal[string]()
+	p := newTimeoutPool(2, 100*time.Millisecond)
+	firstSeen := make(chan string, 1)
+	secondSeen := make(chan string, 1)
+
+	tls.Set("first")
+	first := newTimeoutTask(context.Background(), time.Second, nil, nil,
+		func(context.Context, any, any) error {
+			firstSeen <- tls.Get()
+			return nil
+		})
+	test.Assert(t, p.createWorker(first))
+	test.Assert(t, <-firstSeen == "first")
+	_, err := first.Wait()
+	test.Assert(t, err == nil, err)
+
+	tls.Set("second")
+	second := newTimeoutTask(context.Background(), time.Second, nil, nil,
+		func(context.Context, any, any) error {
+			secondSeen <- tls.Get()
+			return nil
+		})
+	go func() { p.tasks <- second }()
+	test.Assert(t, <-secondSeen == "second")
+	_, err = second.Wait()
+	test.Assert(t, err == nil, err)
+	tls.Remove()
+
+	deadline := time.After(time.Second)
+	for p.Size() != 0 {
+		select {
+		case <-deadline:
+			t.Fatalf("timeout pool worker did not exit, size=%d", p.Size())
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
 }
 
 func TestTask(t *testing.T) {

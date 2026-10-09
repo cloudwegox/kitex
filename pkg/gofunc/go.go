@@ -22,9 +22,9 @@ import (
 	"sync"
 
 	"github.com/bytedance/gopkg/util/gopool"
-
 	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/cloudwego/kitex/pkg/profiler"
+	"github.com/timandy/routine"
 )
 
 // GoTask is used to spawn a new task.
@@ -35,6 +35,7 @@ var GoFunc GoTask
 
 func init() {
 	GoFunc = func(ctx context.Context, f func()) {
+		f = routine.WrapTask(f).Run
 		gopool.CtxGo(ctx, func() {
 			profiler.Tag(ctx)
 			f()

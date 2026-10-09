@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/bytedance/gopkg/util/gopool"
-
 	internal_stream "github.com/cloudwego/kitex/internal/stream"
 	"github.com/cloudwego/kitex/pkg/endpoint"
 	"github.com/cloudwego/kitex/pkg/endpoint/cep"
@@ -38,6 +37,7 @@ import (
 	"github.com/cloudwego/kitex/pkg/rpcinfo"
 	"github.com/cloudwego/kitex/pkg/serviceinfo"
 	"github.com/cloudwego/kitex/pkg/streaming"
+	"github.com/timandy/routine"
 )
 
 // Streaming client streaming interface for code generate
@@ -433,7 +433,7 @@ func callWithTimeout(tmCfg streaming.TimeoutConfig, call func() error, cancel fu
 	timer := time.NewTimer(tmCfg.Timeout)
 	defer timer.Stop()
 	finishChan := make(chan error, 1)
-	gopool.Go(func() {
+	gopool.Go(routine.WrapTask(func() {
 		var callErr error
 		defer func() {
 			if r := recover(); r != nil {
@@ -443,7 +443,7 @@ func callWithTimeout(tmCfg streaming.TimeoutConfig, call func() error, cancel fu
 			finishChan <- callErr
 		}()
 		callErr = call()
-	})
+	}).Run)
 	select {
 	case <-timer.C:
 		err := status.Errorf(codes.RecvDeadlineExceeded, recvTimeoutErrTpl, tmCfg)
