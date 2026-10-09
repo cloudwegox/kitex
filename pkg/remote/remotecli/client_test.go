@@ -224,7 +224,7 @@ func TestRecv(t *testing.T) {
 	test.Assert(t, cli != nil, cli)
 
 	err = cli.Recv(ctx, ri, msg)
-	test.Assert(t, err == readErr, err)
+	test.Assert(t, err == onMessageErr, err)
 }
 
 // TestRecvOneWay test recv own way msg

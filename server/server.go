@@ -20,14 +20,13 @@ package server
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"reflect"
-	"runtime/debug"
 	"sync"
 	"time"
 
 	"github.com/cloudwego/localsession/backup"
+	"github.com/timandy/routine"
 
 	internal_server "github.com/cloudwego/kitex/internal/server"
 	"github.com/cloudwego/kitex/pkg/acl"
@@ -57,6 +56,11 @@ type Server interface {
 	Run() error
 	Stop() error
 }
+
+const (
+	ExtraErrorKey = "ERROR"
+	ExtraStackKey = "STACK"
+)
 
 type server struct {
 	opt  *internal_server.Options
@@ -357,13 +361,10 @@ func (s *server) invokeHandleEndpoint() endpoint.UnaryEndpoint {
 		}
 		defer func() {
 			if handlerErr := recover(); handlerErr != nil {
-				err = kerrors.ErrPanic.WithCauseAndStack(
-					fmt.Errorf(
-						"[happened in biz handler, method=%s.%s, please check the panic at the server side] %s",
-						svcInfo.ServiceName, methodName, handlerErr),
-					string(debug.Stack()))
-				rpcStats := rpcinfo.AsMutableRPCStats(ri.Stats())
-				rpcStats.SetPanicked(err)
+				err = routine.NewRuntimeError(handlerErr)
+				s.handleError(ri, handlerErr, err)
+			} else {
+				s.handleError(ri, err, nil)
 			}
 			rpcinfo.Record(ctx, ri, stats.ServerHandleFinish, err)
 			// clear session
@@ -374,16 +375,22 @@ func (s *server) invokeHandleEndpoint() endpoint.UnaryEndpoint {
 		// set session
 		backup.BackupCtx(ctx)
 		err = implHandlerFunc(ctx, svc.getHandler(methodName), args, resp)
-		if err != nil {
-			if bizErr, ok := kerrors.FromBizStatusError(err); ok {
-				if setter, ok := ri.Invocation().(rpcinfo.InvocationSetter); ok {
-					setter.SetBizStatusErr(bizErr)
-					return nil
-				}
-			}
-			err = kerrors.ErrBiz.WithCause(err)
-		}
-		return err
+		return
+	}
+}
+
+func (s *server) handleError(ri rpcinfo.RPCInfo, err, stack any) {
+	if err == nil {
+		return
+	}
+	setter, ok := ri.Invocation().(rpcinfo.InvocationSetter)
+	if !ok {
+		return
+	}
+	setter.SetBizStatusErr(kerrors.DefaultBizError)
+	setter.SetExtra(ExtraErrorKey, err)
+	if stack != nil {
+		setter.SetExtra(ExtraStackKey, stack)
 	}
 }
 
@@ -400,13 +407,10 @@ func (s *server) streamHandleEndpoint() sep.StreamEndpoint {
 		}
 		defer func() {
 			if handlerErr := recover(); handlerErr != nil {
-				err = kerrors.ErrPanic.WithCauseAndStack(
-					fmt.Errorf(
-						"[happened in biz handler, method=%s.%s, please check the panic at the server side] %s",
-						svcInfo.ServiceName, methodName, handlerErr),
-					string(debug.Stack()))
-				rpcStats := rpcinfo.AsMutableRPCStats(ri.Stats())
-				rpcStats.SetPanicked(err)
+				err = routine.NewRuntimeError(handlerErr)
+				s.handleError(ri, handlerErr, err)
+			} else {
+				s.handleError(ri, err, nil)
 			}
 			rpcinfo.Record(ctx, ri, stats.ServerHandleFinish, err)
 			// clear session
@@ -429,16 +433,7 @@ func (s *server) streamHandleEndpoint() sep.StreamEndpoint {
 			}
 		}
 		err = implHandlerFunc(ctx, svc.getHandler(methodName), args, nil)
-		if err != nil {
-			if bizErr, ok := kerrors.FromBizStatusError(err); ok {
-				if setter, ok := ri.Invocation().(rpcinfo.InvocationSetter); ok {
-					setter.SetBizStatusErr(bizErr)
-					return nil
-				}
-			}
-			err = kerrors.ErrBiz.WithCause(err)
-		}
-		return err
+		return
 	}
 }
 
