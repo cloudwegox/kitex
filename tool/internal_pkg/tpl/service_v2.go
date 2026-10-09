@@ -119,41 +119,17 @@ func {{LowerFirst .Name}}Handler(ctx context.Context, handler interface{}, arg, 
 	{{- if $unary}} {{/* unary logic */}}
 	{{- if eq $.Codec "protobuf"}} {{/* protobuf logic */}}
 	s := arg.(*{{if not .GenArgResultStruct}}{{.PkgRefName}}.{{end}}{{.ArgStructName}})
-	success, err := handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}(ctx{{range .Args}}, s.{{.Name}}{{end}})
-	if err != nil {
-		return err
-	}
+	success := handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}s.{{$arg.Name}}{{end}})
 	realResult := result.(*{{if not .GenArgResultStruct}}{{.PkgRefName}}.{{end}}{{.ResStructName}})
 	realResult.Success = {{if .IsResponseNeedRedirect}}&{{end}}success
 	return nil
 	{{- else}} {{/* thrift logic */}}
 	{{if gt .ArgsLength 0}}realArg := {{else}}_ = {{end}}arg.(*{{if not .GenArgResultStruct}}{{.PkgRefName}}.{{end}}{{.ArgStructName}})
 	{{if or (not .Void) .Exceptions}}realResult := result.(*{{if not .GenArgResultStruct}}{{.PkgRefName}}.{{end}}{{.ResStructName}}){{end}}
-	{{if .Void}}err := handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}(ctx{{range .Args}}, realArg.{{.Name}}{{end}})
-	{{else}}success, err := handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}(ctx{{range .Args}}, realArg.{{.Name}}{{end}})
-	{{end -}}
-	if err != nil {
-	{{- if $HandlerReturnKeepResp }}
-		// still keep resp when err is not nil
-		// NOTE: use "-handler-return-keep-resp" to generate this
-		{{if not .Void}}realResult.Success = {{if .IsResponseNeedRedirect}}&{{end}}success{{- end}}
-	{{- end }}
-	{{if .Exceptions -}}
-		switch v := err.(type) {
-		{{range .Exceptions -}}
-		case {{.Type}}:
-			 realResult.{{.Name}} = v
-		{{end -}}
-		default:
-			 return err
-		}
-	} else {
-	{{else -}}
-		return err
-	}
+	{{if .Void}}handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}realArg.{{$arg.Name}}{{end}})
+	{{else}}success := handler.({{.PkgRefName}}.{{.ServiceName}}).{{.Name}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}realArg.{{$arg.Name}}{{end}})
 	{{end -}}
 	{{if not .Void}}realResult.Success = {{if .IsResponseNeedRedirect}}&{{end}}success{{end}}
-	{{- if .Exceptions}}}{{end}}
 	return nil
 	{{- end}}
 	{{- else}}{{/* streaming logic */}}
@@ -354,45 +330,45 @@ func (p *kClient) {{.Name}}(ctx context.Context{{if not .ClientStreaming}}{{rang
 	return stream, nil
 }
 {{- else}}
-func (p *kClient) {{.Name}}(ctx context.Context {{range .Args}}, {{.RawName}} {{.Type}}{{end}}) ({{if not .Void}}r {{.Resp.Type}}, {{end}}err error) {
+func (p *kClient) {{.Name}}(ctx context.Context {{range .Args}}, {{.RawName}} {{.Type}}{{end}}){{if not .Void}} (r {{.Resp.Type}}){{end}} {
 	var _args {{if not .GenArgResultStruct}}{{.PkgRefName}}.{{end}}{{.ArgStructName}}
 	{{range .Args -}}
 	_args.{{.Name}} = {{.RawName}}
 	{{end -}}
 {{if .Void -}}
 	{{if .Oneway -}}
-	if err = p.c.Call(ctx, "{{.RawName}}", &_args, nil); err != nil {
-		return
+	if err := p.c.Call(ctx, "{{.RawName}}", &_args, nil); err != nil {
+		panic(err)
 	}
 	{{else -}}
 	var _result {{if not .GenArgResultStruct}}{{.PkgRefName}}.{{end}}{{.ResStructName}}
-	if err = p.c.Call(ctx, "{{.RawName}}", &_args, &_result); err != nil {
-		return
+	if err := p.c.Call(ctx, "{{.RawName}}", &_args, &_result); err != nil {
+		panic(err)
 	}
 	{{if .Exceptions -}}
 	switch {
 	{{range .Exceptions -}}
 	case _result.{{.Name}} != nil:
-		return _result.{{.Name}}
+		panic(_result.{{.Name}})
 	{{end -}}
 	}
 	{{end -}}
 	{{end -}}
-	return nil
+	return
 {{else -}}
 	var _result {{if not .GenArgResultStruct}}{{.PkgRefName}}.{{end}}{{.ResStructName}}
-	if err = p.c.Call(ctx, "{{.RawName}}", &_args, &_result); err != nil {
-		return
+	if err := p.c.Call(ctx, "{{.RawName}}", &_args, &_result); err != nil {
+		panic(err)
 	}
 	{{if .Exceptions -}}
 	switch {
 	{{range .Exceptions -}}
 	case _result.{{.Name}} != nil:
-		return r, _result.{{.Name}}
+		panic(_result.{{.Name}})
 	{{end -}}
 	}
 	{{end -}}
-	return _result.GetSuccess(), nil
+	return _result.GetSuccess()
 {{end -}}
 }
 {{- end}}

@@ -36,7 +36,7 @@ type Client interface {
 	{{.Name}}(ctx context.Context {{if not .ClientStreaming}}{{range .Args}}, {{.RawName}} {{.Type}}{{end}}{{end}}, callOptions ...callopt.Option ) (stream {{.ServiceName}}_{{.RawName}}Client, err error)
 {{- else}}
 	{{- if or (eq $.Codec "protobuf") (eq .StreamingMode "")}}
-	{{.Name}}(ctx context.Context {{range .Args}}, {{.RawName}} {{.Type}}{{end}}, callOptions ...callopt.Option ) ({{if not .Void}}r {{.Resp.Type}}, {{end}}err error)
+	{{.Name}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{$arg.RawName}} {{$arg.Type}}{{end}}{{if gt (len .Args) 0}}, {{end}}callOptions ...callopt.Option ){{if not .Void}} {{.Resp.Type}}{{end}}
 	{{- end}}
 {{- end}}
 {{- end}}
@@ -121,9 +121,10 @@ func (p *k{{$.ServiceName}}Client) {{.Name}}(ctx context.Context {{if not .Clien
 {{- end}}
 {{- else}}
 {{- if or (eq $.Codec "protobuf") (eq .StreamingMode "")}}
-func (p *k{{$.ServiceName}}Client) {{.Name}}(ctx context.Context {{range .Args}}, {{.RawName}} {{.Type}}{{end}}, callOptions ...callopt.Option ) ({{if not .Void}}r {{.Resp.Type}}, {{end}}err error) {
+func (p *k{{$.ServiceName}}Client) {{.Name}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{$arg.RawName}} {{$arg.Type}}{{end}}{{if gt (len .Args) 0}}, {{end}}callOptions ...callopt.Option ){{if not .Void}} {{.Resp.Type}}{{end}} {
+	ctx := context.Background()
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
-	return p.kClient.{{.Name}}(ctx{{range .Args}}, {{.RawName}}{{end}})
+	{{if .Void}}p.kClient.{{.Name}}(ctx{{range .Args}}, {{.RawName}}{{end}}){{else}}return p.kClient.{{.Name}}(ctx{{range .Args}}, {{.RawName}}{{end}}){{end}}
 }
 {{- end}}
 {{- end}}

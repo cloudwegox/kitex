@@ -79,7 +79,7 @@ func renderService(fm func(format string, aa ...any), s *Service, streamx bool) 
 			}
 
 		default: // unary
-			fm("%s(ctx context.Context, req %s) (res %s, err error)", m.Name, m.ReqType, m.ResType)
+			fm("%s(req %s) (res %s)", m.Name, m.ReqType, m.ResType)
 		}
 	}
 	fm("}")

@@ -318,8 +318,6 @@ func genKitexServiceInterface(f *prutalgen.Proto, w *prutalgen.CodeWriter, strea
 				w.UsePkg("github.com/cloudwego/kitex/pkg/streaming", "")
 			} else if m.RequestStream || m.ReturnStream {
 				w.UsePkg("github.com/cloudwego/kitex/pkg/streaming", "")
-			} else {
-				w.UsePkg("context", "")
 			}
 		}
 		in.Services = append(in.Services, x)
