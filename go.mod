@@ -2,6 +2,8 @@ module github.com/cloudwego/kitex
 
 go 1.20
 
+replace github.com/cloudwego/thriftgo => github.com/cloudwegox/thriftgo v0.4.6-0.20261009094033-c28af2a35968
+
 require (
 	github.com/bytedance/gopkg v0.1.4
 	github.com/bytedance/sonic v1.15.0
